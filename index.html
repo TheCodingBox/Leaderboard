@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Leaderboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0c0d0f;
+      --surface:   #13151a;
+      --border:    #1f2330;
+      --text:      #e8eaf0;
+      --muted:     #565d7a;
+      --accent:    #f0c040;
+      --up:        #3dffa0;
+      --down:      #ff5f6e;
+      --rank1:     #f0c040;
+      --rank2:     #c0c8e0;
+      --rank3:     #d08850;
+      --radius:    12px;
+      --mono:      'DM Mono', monospace;
+      --display:   'Syne', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px 80px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    header .eyebrow {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    header h1 {
+      font-family: var(--display);
+      font-size: clamp(2.2rem, 5vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+      color: var(--text);
+    }
+    header h1 span { color: var(--accent); }
+    header p.sub {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Config Banner ── */
+    #config-banner {
+      background: #1a1008;
+      border: 1px solid #604010;
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      max-width: 620px;
+      width: 100%;
+      margin-bottom: 32px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #c8a060;
+      display: none; /* shown by JS if placeholder keys detected */
+    }
+    #config-banner strong { color: var(--accent); }
+    #config-banner code {
+      background: #2a1a08;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    /* ── Error / Loading ── */
+    #status {
+      max-width: 620px;
+      width: 100%;
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 24px;
+      min-height: 20px;
+    }
+    #status.error { color: var(--down); }
+
+    /* ── Board ── */
+    #board {
+      width: 100%;
+      max-width: 620px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 18px;
+      transition: border-color 0.2s, transform 0.15s;
+      animation: slideIn 0.3s ease both;
+    }
+    .card:hover {
+      border-color: #2e3450;
+      transform: translateX(3px);
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* rank */
+    .rank {
+      font-family: var(--display);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--muted);
+      text-align: center;
+      width: 44px;
+    }
+    .rank.r1 { color: var(--rank1); }
+    .rank.r2 { color: var(--rank2); }
+    .rank.r3 { color: var(--rank3); }
+
+    /* name + score */
+    .meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .meta .name {
+      font-family: var(--display);
+      font-size: 1.05rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .meta .score-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .score-val {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent);
+    }
+    .score-val.neg { color: var(--down); }
+
+    /* vote buttons */
+    .votes {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      padding: 6px 10px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.95); }
+    .btn.up:hover   { background: #0d2b1f; border-color: var(--up);   color: var(--up); }
+    .btn.down:hover { background: #2b0d10; border-color: var(--down); color: var(--down); }
+    .btn.loading    { opacity: 0.45; pointer-events: none; }
+    .btn svg        { width: 14px; height: 14px; flex-shrink: 0; }
+
+    /* empty state */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 2;
+    }
+    .empty strong { color: var(--text); font-family: var(--display); font-size: 1.1rem; display: block; margin-bottom: 8px; }
+
+    /* live dot */
+    .live-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      background: var(--up);
+      border-radius: 50%;
+      margin-right: 5px;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.25; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Community Rankings</p>
+  <h1>LEADER<span>BOARD</span></h1>
+  <p class="sub"><span class="live-dot"></span>Live · updates in real time</p>
+</header>
+
+<!-- ⚠️  Shown if placeholder keys are still in place -->
+<div id="config-banner">
+  <strong>⚠️ Setup required</strong><br>
+  Open this file and replace the two placeholder values near the top of the
+  <code>&lt;script&gt;</code> block:<br><br>
+  <code>SUPABASE_URL</code> — your project URL from the Supabase dashboard<br>
+  <code>SUPABASE_KEY</code> — your project's <strong>anon / public</strong> key
+</div>
+
+<div id="status">Loading…</div>
+<div id="board"></div>
+
+<!-- Supabase JS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<script>
+  /* ============================================================
+     🔧  CONFIGURATION — replace these two values with your own
+     ============================================================ */
+  const supabaseUrl = "https://rotkvofxmvbgsyclbnkx.supabase.co";
+  const supabaseKey = "sb_publishable_5J5q7giGHHnB0dnokpqgvQ_5bKOB6Tb";
+  /* ============================================================ */
+
+  // ── Guard: show setup banner if keys are still placeholders
+  const isPlaceholder =
+    SUPABASE_URL.includes('YOUR_PROJECT_REF') ||
+    SUPABASE_KEY.includes('YOUR_ANON_PUBLIC_KEY');
+
+  if (isPlaceholder) {
+    document.getElementById('config-banner').style.display = 'block';
+    document.getElementById('status').textContent = 'Waiting for Supabase credentials…';
+  }
+
+  // ── Init Supabase client (safe even with placeholder keys for layout preview)
+  const supabase = isPlaceholder
+    ? null
+    : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // ── DOM refs
+  const boardEl  = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+
+  // ── In-memory state: { [itemId]: { name, ups, downs } }
+  let state = {};
+
+  // ── Helpers ─────────────────────────────────────────────────
+
+  function setStatus(msg, isError = false) {
+    statusEl.textContent   = msg;
+    statusEl.className     = isError ? 'error' : '';
+  }
+
+  function score(item) {
+    return (item.ups || 0) - (item.downs || 0);
+  }
+
+  function rankClass(i) {
+    return i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : '';
+  }
+
+  function rankSymbol(i) {
+    if (i === 0) return '🥇';
+    if (i === 1) return '🥈';
+    if (i === 2) return '🥉';
+    return `#${i + 1}`;
+  }
+
+  // ── Fetch all items + votes ──────────────────────────────────
+
+  async function loadData() {
+    if (!supabase) return; // skip if not configured
+
+    try {
+      // Fetch items
+      const { data: items, error: itemsError } = await supabase
+        .from('items')
+        .select('id, name');
+
+      if (itemsError) throw itemsError;
+
+      // Fetch votes
+      const { data: votes, error: votesError } = await supabase
+        .from('votes')
+        .select('item_id, vote_type');
+
+      if (votesError) throw votesError;
+
+      // Build state map from items (safe: default to empty array)
+      const newState = {};
+      for (const item of (items || [])) {
+        newState[item.id] = { name: item.name || 'Unnamed', ups: 0, downs: 0 };
+      }
+
+      // Tally votes (safe: ignore votes for unknown item_ids)
+      for (const vote of (votes || [])) {
+        if (!newState[vote.item_id]) continue;
+        if (vote.vote_type === 'up')   newState[vote.item_id].ups++;
+        if (vote.vote_type === 'down') newState[vote.item_id].downs++;
+      }
+
+      state = newState;
+      render();
+      setStatus(''); // clear loading message
+
+    } catch (err) {
+      console.error('loadData error:', err);
+      setStatus('Could not load data: ' + (err.message || 'unknown error'), true);
+      // Still render with whatever state we have (may be empty)
+      render();
+    }
+  }
+
+  // ── Render leaderboard ───────────────────────────────────────
+
+  function render() {
+    boardEl.innerHTML = '';
+
+    const sorted = Object.entries(state)
+      .map(([id, item]) => ({ id, ...item, score: score(item) }))
+      .sort((a, b) => b.score - a.score);
+
+    if (sorted.length === 0) {
+      boardEl.innerHTML = `
+        <div class="empty">
+          <strong>No items yet</strong>
+          Add rows to your <code>items</code> table in Supabase to get started.
+        </div>`;
+      return;
+    }
+
+    sorted.forEach((item, i) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.animationDelay = `${i * 40}ms`;
+      card.dataset.id = item.id;
+
+      const sc = item.score;
+      const scoreClass = sc < 0 ? 'neg' : '';
+
+      card.innerHTML = `
+        <div class="rank ${rankClass(i)}">${rankSymbol(i)}</div>
+        <div class="meta">
+          <span class="name">${escHtml(item.name)}</span>
+          <div class="score-row">
+            <span class="score-val ${scoreClass}">${sc >= 0 ? '+' : ''}${sc}</span>
+            <span>· ${item.ups}↑ ${item.downs}↓</span>
+          </div>
+        </div>
+        <div class="votes">
+          <button class="btn up"   data-id="${item.id}" data-type="up">
+            ${svgUp()} Up
+          </button>
+          <button class="btn down" data-id="${item.id}" data-type="down">
+            ${svgDown()} Down
+          </button>
+        </div>`;
+
+      boardEl.appendChild(card);
+    });
+
+    // Attach vote handlers
+    boardEl.querySelectorAll('.btn').forEach(btn => {
+      btn.addEventListener('click', handleVote);
+    });
+  }
+
+  // ── Vote handler ─────────────────────────────────────────────
+
+  async function handleVote(e) {
+    const btn    = e.currentTarget;
+    const itemId = btn.dataset.id;
+    const type   = btn.dataset.type; // 'up' | 'down'
+
+    if (!supabase) {
+      setStatus('Configure Supabase credentials to enable voting.', true);
+      return;
+    }
+
+    // Optimistic UI update
+    btn.classList.add('loading');
+    if (state[itemId]) {
+      if (type === 'up')   state[itemId].ups++;
+      if (type === 'down') state[itemId].downs++;
+    }
+    render(); // re-render immediately
+
+    try {
+      const { error } = await supabase
+        .from('votes')
+        .insert({ item_id: itemId, vote_type: type });
+
+      if (error) throw error;
+      // Real-time subscription will handle the server-confirmed update
+
+    } catch (err) {
+      console.error('Vote error:', err);
+      // Roll back optimistic update
+      if (state[itemId]) {
+        if (type === 'up')   state[itemId].ups   = Math.max(0, state[itemId].ups   - 1);
+        if (type === 'down') state[itemId].downs = Math.max(0, state[itemId].downs - 1);
+      }
+      setStatus('Vote failed: ' + (err.message || 'unknown error'), true);
+      render();
+    }
+  }
+
+  // ── Real-time subscription ───────────────────────────────────
+
+  function subscribeRealtime() {
+    if (!supabase) return;
+
+    supabase
+      .channel('votes-channel')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'votes' },
+        (payload) => {
+          // A new vote arrived from another user — re-tally from server
+          const { item_id, vote_type } = payload.new || {};
+          if (!item_id || !state[item_id]) return;
+          if (vote_type === 'up')   state[item_id].ups++;
+          if (vote_type === 'down') state[item_id].downs++;
+          render();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime: subscribed to votes');
+        }
+      });
+  }
+
+  // ── Safety helpers ───────────────────────────────────────────
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function svgUp() {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="8 3 13 8 8 13"/><line x1="3" y1="8" x2="13" y2="8"/>
+    </svg>`;
+  }
+
+  function svgDown() {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="8 13 3 8 8 3"/><line x1="13" y1="8" x2="3" y2="8"/>
+    </svg>`;
+  }
+
+  // ── Boot ─────────────────────────────────────────────────────
+
+  (async () => {
+    await loadData();
+    subscribeRealtime();
+  })();
+</script>
+</body>
+</html>
