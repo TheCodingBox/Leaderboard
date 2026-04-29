@@ -267,7 +267,7 @@
   }
 
   // ── Init Supabase client (safe even with placeholder keys for layout preview)
-  const supabase = isPlaceholder
+  const sb = isPlaceholder
     ? null
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
