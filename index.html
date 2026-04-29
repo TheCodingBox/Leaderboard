@@ -285,6 +285,8 @@
 
   // ── In-memory state: { [itemId]: { name, ups, downs } }
   let state = {};
+  let userVotes = {}; // itemId -> 'up' | 'down' | null
+  let voteLock = {};  // prevents spam clicking
 
   // ── Helpers ─────────────────────────────────────────────────
 
@@ -341,6 +343,17 @@
 
       const items = itemsRes.data || [];
       const votes = votesRes.data || [];
+      const userVotesRes = await sb
+        .from('votes')
+        .select('item_id, vote_type')
+        .eq('user_id', userId);
+
+      const userVotesData = userVotesRes.data || [];
+
+      userVotes = {};
+      for (const v of userVotesData) {
+        userVotes[v.item_id] = v.vote_type;
+      }
 
       setStatus(`Loaded ${items.length} item(s), ${votes.length} vote(s). Rendering…`);
 
@@ -422,70 +435,71 @@
   // ── Vote handler ─────────────────────────────────────────────
 
   async function handleVote(e) {
-    const btn    = e.currentTarget;
+    const btn = e.currentTarget;
     const itemId = btn.dataset.id;
-    const type   = btn.dataset.type; // 'up' | 'down'
-
-    if (!sb) {
-      setStatus('Configure Supabase credentials to enable voting.', true);
-      return;
-    }
-
-    // Optimistic UI update
+    const type = btn.dataset.type;
+    
+    if (!sb) return;
+    
+    // stop spam clicking
+    if (voteLock[itemId]) return;
+    voteLock[itemId] = true;
+    
     btn.classList.add('loading');
-    if (state[itemId]) {
-      if (type === 'up')   state[itemId].ups++;
-      if (type === 'down') state[itemId].downs++;
-    }
-    render(); // re-render immediately
-
+    
+    const previous = userVotes[itemId] || null;
+    
     try {
-      const existing = await sb
-        .from('votes')
-        .select('*')
-        .eq('item_id', itemId)
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (existing.data) {
-        // already voted → remove vote
-        const { error } = await sb
+    
+      // same vote again → remove it
+      if (previous === type) {
+    
+        await sb
           .from('votes')
           .delete()
           .eq('item_id', itemId)
           .eq('user_id', userId);
-
-        if (error) throw error;
-
-        // rollback optimistic update
-        if (state[itemId]) {
-          if (type === 'up') state[itemId].ups = Math.max(0, state[itemId].ups - 1);
-          if (type === 'down') state[itemId].downs = Math.max(0, state[itemId].downs - 1);
-        }
-
+    
+        userVotes[itemId] = null;
+    
+        if (type === 'up') state[itemId].ups--;
+        if (type === 'down') state[itemId].downs--;
+    
       } else {
-        // no vote yet → insert vote
-        const { error } = await sb
-          .from('votes')
-          .insert({
-            item_id: itemId,
-            user_id: userId,
-            vote_type: type
-          });
-
-        if (error) throw error;
+    
+        // remove old vote first (if exists)
+        if (previous) {
+          await sb
+            .from('votes')
+            .delete()
+            .eq('item_id', itemId)
+            .eq('user_id', userId);
+    
+          if (previous === 'up') state[itemId].ups--;
+          if (previous === 'down') state[itemId].downs--;
+        }
+    
+        // insert new vote
+        await sb.from('votes').insert({
+          item_id: itemId,
+          user_id: userId,
+          vote_type: type
+        });
+    
+        userVotes[itemId] = type;
+    
+        if (type === 'up') state[itemId].ups++;
+        if (type === 'down') state[itemId].downs++;
       }
-
-    } catch (err) {
-      console.error('Vote error:', err);
-      // Roll back optimistic update
-      if (state[itemId]) {
-        if (type === 'up')   state[itemId].ups   = Math.max(0, state[itemId].ups   - 1);
-        if (type === 'down') state[itemId].downs = Math.max(0, state[itemId].downs - 1);
-      }
-      setStatus('Vote failed: ' + (err.message || 'unknown error'), true);
+    
       render();
+    
+    } catch (err) {
+      console.error(err);
+      setStatus('Vote failed: ' + err.message, true);
     }
+    
+    voteLock[itemId] = false;
   }
 
   // ── Real-time subscription ───────────────────────────────────
