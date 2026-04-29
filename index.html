@@ -306,36 +306,40 @@
     // Not configured yet — clear loading text and stop
     if (!supabase) {
       setStatus('');
-      render(); // renders empty state
+      render();
       return;
     }
 
     try {
-      // Hard timeout: if Supabase doesn't respond in 8 s, fail gracefully
-      const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out after 8 s. Check your Supabase URL and network.')), 8000)
+      setStatus('Step 1/3: Connecting to Supabase…');
+
+      const timer = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timed out after 8s — check your Supabase URL and that the project is not paused.')), 8000)
       );
 
-      const fetchData = Promise.all([
+      setStatus('Step 2/3: Fetching items…');
+      const itemsRes = await Promise.race([
         supabase.from('items').select('id, name'),
-        supabase.from('votes').select('item_id, vote_type'),
+        timer
       ]);
+      if (itemsRes.error) throw new Error('items table: ' + itemsRes.error.message);
 
-      const [itemsRes, votesRes] = await Promise.race([fetchData, timeout]);
-
-      if (itemsRes.error) throw itemsRes.error;
-      if (votesRes.error) throw votesRes.error;
+      setStatus('Step 3/3: Fetching votes…');
+      const votesRes = await Promise.race([
+        supabase.from('votes').select('item_id, vote_type'),
+        timer
+      ]);
+      if (votesRes.error) throw new Error('votes table: ' + votesRes.error.message);
 
       const items = itemsRes.data || [];
       const votes = votesRes.data || [];
 
-      // Build state map from items
+      setStatus(`Loaded ${items.length} item(s), ${votes.length} vote(s). Rendering…`);
+
       const newState = {};
       for (const item of items) {
         newState[item.id] = { name: item.name || 'Unnamed', ups: 0, downs: 0 };
       }
-
-      // Tally votes (ignore votes for unknown item_ids)
       for (const vote of votes) {
         if (!newState[vote.item_id]) continue;
         if (vote.vote_type === 'up')   newState[vote.item_id].ups++;
@@ -344,12 +348,12 @@
 
       state = newState;
       render();
-      setStatus(''); // clear loading message
+      setStatus('');
 
     } catch (err) {
       console.error('loadData error:', err);
       setStatus('⚠ ' + (err.message || 'Could not load data'), true);
-      render(); // render whatever state we have (may be empty)
+      render();
     }
   }
 
