@@ -221,6 +221,18 @@
       0%, 100% { opacity: 1; }
       50%       { opacity: 0.25; }
     }
+
+    .btn.up-active {
+      background: #0d2b1f;
+      border-color: var(--up);
+      color: var(--up);
+    }
+    
+    .btn.down-active {
+      background: #2b0d10;
+      border-color: var(--down);
+      color: var(--down);
+    }
   </style>
 </head>
 <body>
@@ -415,10 +427,10 @@
           </div>
         </div>
         <div class="votes">
-          <button class="btn up"   data-id="${item.id}" data-type="up">
+          <button class="btn up ${userVotes[item.id] === 'up' ? 'up-active' : ''}" data-id="${item.id}" data-type="up">
             ${svgUp()} Up
           </button>
-          <button class="btn down" data-id="${item.id}" data-type="down">
+          <button class="btn down ${userVotes[item.id] === 'down' ? 'down-active' : ''}" data-id="${item.id}" data-type="down">
             ${svgDown()} Down
           </button>
         </div>`;
