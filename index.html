@@ -418,7 +418,7 @@
     const itemId = btn.dataset.id;
     const type   = btn.dataset.type; // 'up' | 'down'
 
-    if (!supabase) {
+    if (!sb) {
       setStatus('Configure Supabase credentials to enable voting.', true);
       return;
     }
@@ -432,7 +432,7 @@
     render(); // re-render immediately
 
     try {
-      const { error } = await supabase
+      const { error } = await sb
         .from('votes')
         .insert({ item_id: itemId, vote_type: type });
 
