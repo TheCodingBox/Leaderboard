@@ -438,67 +438,69 @@
     const btn = e.currentTarget;
     const itemId = btn.dataset.id;
     const type = btn.dataset.type;
-    
+  
     if (!sb) return;
-    
-    // stop spam clicking
+  
     if (voteLock[itemId]) return;
     voteLock[itemId] = true;
-    
+  
     btn.classList.add('loading');
-    
+  
     const previous = userVotes[itemId] || null;
-    
+  
     try {
-    
-      // same vote again → remove it
+  
+      // ── CASE 1: clicking same vote again → REMOVE VOTE
       if (previous === type) {
-    
+  
         await sb
           .from('votes')
           .delete()
           .eq('item_id', itemId)
           .eq('user_id', userId);
-    
+  
         userVotes[itemId] = null;
-    
+  
         if (type === 'up') state[itemId].ups--;
         if (type === 'down') state[itemId].downs--;
-    
-      } else {
-    
-        // remove old vote first (if exists)
+  
+      } 
+      else {
+  
+        // ── CASE 2: switching or new vote
+  
+        // remove previous vote if exists
         if (previous) {
           await sb
             .from('votes')
             .delete()
             .eq('item_id', itemId)
             .eq('user_id', userId);
-    
+  
           if (previous === 'up') state[itemId].ups--;
           if (previous === 'down') state[itemId].downs--;
         }
-    
+  
         // insert new vote
         await sb.from('votes').insert({
           item_id: itemId,
           user_id: userId,
           vote_type: type
         });
-    
+  
         userVotes[itemId] = type;
-    
+  
         if (type === 'up') state[itemId].ups++;
         if (type === 'down') state[itemId].downs++;
       }
-    
+  
       render();
-    
+  
     } catch (err) {
       console.error(err);
       setStatus('Vote failed: ' + err.message, true);
     }
-    
+  
     voteLock[itemId] = false;
   }
 
@@ -512,13 +514,9 @@
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'votes' },
-        (payload) => {
+        async (payload) => {
           // A new vote arrived from another user — re-tally from server
-          const { item_id, vote_type } = payload.new || {};
-          if (!item_id || !state[item_id]) return;
-          if (vote_type === 'up')   state[item_id].ups++;
-          if (vote_type === 'down') state[item_id].downs++;
-          render();
+          await loadData();
         }
       )
       .subscribe((status) => {
