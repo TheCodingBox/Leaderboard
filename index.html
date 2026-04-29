@@ -4,507 +4,166 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Leaderboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <style>
-    /* ── Reset & Base ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --bg:        #0c0d0f;
-      --surface:   #13151a;
-      --border:    #1f2330;
-      --text:      #e8eaf0;
-      --muted:     #565d7a;
-      --accent:    #f0c040;
-      --up:        #3dffa0;
-      --down:      #ff5f6e;
-      --rank1:     #f0c040;
-      --rank2:     #c0c8e0;
-      --rank3:     #d08850;
-      --radius:    12px;
-      --mono:      'DM Mono', monospace;
-      --display:   'Syne', sans-serif;
-    }
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--mono);
+      background: #0c0d0f;
+      color: #e8eaf0;
+      font-family: 'DM Mono', monospace;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 48px 16px 80px;
+      padding: 40px 16px;
     }
 
-    /* ── Header ── */
-    header {
-      text-align: center;
-      margin-bottom: 48px;
-    }
-    header .eyebrow {
-      font-family: var(--mono);
-      font-size: 11px;
-      letter-spacing: 0.22em;
-      color: var(--accent);
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-    header h1 {
-      font-family: var(--display);
-      font-size: clamp(2.2rem, 5vw, 3.6rem);
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      line-height: 1;
-      color: var(--text);
-    }
-    header h1 span { color: var(--accent); }
-    header p.sub {
-      margin-top: 12px;
-      font-size: 13px;
-      color: var(--muted);
-      letter-spacing: 0.04em;
+    h1 {
+      font-family: 'Syne', sans-serif;
+      margin-bottom: 20px;
     }
 
-    /* ── Config Banner ── */
-    #config-banner {
-      background: #1a1008;
-      border: 1px solid #604010;
-      border-radius: var(--radius);
-      padding: 16px 20px;
-      max-width: 620px;
-      width: 100%;
-      margin-bottom: 32px;
-      font-size: 13px;
-      line-height: 1.7;
-      color: #c8a060;
-      display: none; /* shown by JS if placeholder keys detected */
-    }
-    #config-banner strong { color: var(--accent); }
-    #config-banner code {
-      background: #2a1a08;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-size: 12px;
-    }
-
-    /* ── Error / Loading ── */
     #status {
-      max-width: 620px;
-      width: 100%;
-      text-align: center;
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 24px;
-      min-height: 20px;
+      color: #888;
+      margin-bottom: 20px;
     }
-    #status.error { color: var(--down); }
 
-    /* ── Board ── */
     #board {
       width: 100%;
-      max-width: 620px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      max-width: 600px;
     }
 
-    /* ── Card ── */
     .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      display: grid;
-      grid-template-columns: 44px 1fr auto;
-      align-items: center;
-      gap: 16px;
-      padding: 16px 18px;
-      transition: border-color 0.2s, transform 0.15s;
-      animation: slideIn 0.3s ease both;
-    }
-    .card:hover {
-      border-color: #2e3450;
-      transform: translateX(3px);
-    }
-
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* rank */
-    .rank {
-      font-family: var(--display);
-      font-size: 1.25rem;
-      font-weight: 800;
-      color: var(--muted);
-      text-align: center;
-      width: 44px;
-    }
-    .rank.r1 { color: var(--rank1); }
-    .rank.r2 { color: var(--rank2); }
-    .rank.r3 { color: var(--rank3); }
-
-    /* name + score */
-    .meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-    .meta .name {
-      font-family: var(--display);
-      font-size: 1.05rem;
-      font-weight: 700;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .meta .score-row {
+      background: #13151a;
+      border: 1px solid #1f2330;
+      padding: 14px;
+      margin-bottom: 10px;
+      border-radius: 10px;
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--muted);
     }
-    .score-val {
-      font-family: var(--mono);
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--accent);
-    }
-    .score-val.neg { color: var(--down); }
 
-    /* vote buttons */
-    .votes {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .btn {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      background: transparent;
-      color: var(--muted);
-      font-family: var(--mono);
-      font-size: 12px;
+    button {
       cursor: pointer;
-      padding: 6px 10px;
-      transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
-      white-space: nowrap;
-    }
-    .btn:active { transform: scale(0.95); }
-    .btn.up:hover   { background: #0d2b1f; border-color: var(--up);   color: var(--up); }
-    .btn.down:hover { background: #2b0d10; border-color: var(--down); color: var(--down); }
-    .btn.loading    { opacity: 0.45; pointer-events: none; }
-    .btn svg        { width: 14px; height: 14px; flex-shrink: 0; }
-
-    /* empty state */
-    .empty {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 2;
-    }
-    .empty strong { color: var(--text); font-family: var(--display); font-size: 1.1rem; display: block; margin-bottom: 8px; }
-
-    /* live dot */
-    .live-dot {
-      display: inline-block;
-      width: 7px; height: 7px;
-      background: var(--up);
-      border-radius: 50%;
-      margin-right: 5px;
-      animation: pulse 1.8s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.25; }
+      margin-left: 6px;
     }
   </style>
 </head>
+
 <body>
 
-<header>
-  <p class="eyebrow">Community Rankings</p>
-  <h1>LEADER<span>BOARD</span></h1>
-  <p class="sub"><span class="live-dot"></span>Live · updates in real time</p>
-</header>
-
-<!-- ⚠️  Shown if placeholder keys are still in place -->
-<div id="config-banner">
-  <strong>⚠️ Setup required</strong><br>
-  Open this file and replace the two placeholder values near the top of the
-  <code>&lt;script&gt;</code> block:<br><br>
-  <code>SUPABASE_URL</code> — your project URL from the Supabase dashboard<br>
-  <code>SUPABASE_KEY</code> — your project's <strong>anon / public</strong> key
-</div>
-
-<div id="status">Loading…</div>
+<h1>Leaderboard</h1>
+<div id="status">Loading...</div>
 <div id="board"></div>
 
-<!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <script>
-  /* ============================================================
-     🔧  CONFIGURATION — replace these two values with your own
-     ============================================================ */
-  const SUPABASE_URL = 'https://rotkvofxmvbgsyclbnkx.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdGt2b2Z4bXZiZ3N5Y2xibmt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODg4NzUsImV4cCI6MjA5Mjk2NDg3NX0.2jlfis28XwZeIVkNT1uCM7YjShbUzClbf1Zlo75RRcU';
-  /* ============================================================ */
+/* 🔧 YOUR CONFIG */
+const SUPABASE_URL = "https://rotkvofxmvbgsyclbnkx.supabase.co";
+const SUPABASE_KEY = "YOUR_ANON_KEY_HERE";
 
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+const statusEl = document.getElementById("status");
+const boardEl = document.getElementById("board");
 
-  // ── Guard: show setup banner if keys are still placeholders
-  const isPlaceholder =
-    SUPABASE_URL.includes('YOUR_PROJECT_REF') ||
-    SUPABASE_KEY.includes('YOUR_ANON_PUBLIC_KEY');
+let state = {};
 
-  if (isPlaceholder) {
-    document.getElementById('config-banner').style.display = 'block';
-    document.getElementById('status').textContent = 'Waiting for Supabase credentials…';
-  }
+function setStatus(msg) {
+  statusEl.innerText = msg;
+}
 
-  // ── Init Supabase client (safe even with placeholder keys for layout preview)
-  const supabase = isPlaceholder
-    ? null
-    : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+async function load() {
+  try {
+    setStatus("Loading items...");
 
-  // ── DOM refs
-  const boardEl  = document.getElementById('board');
-  const statusEl = document.getElementById('status');
+    const { data: items, error: e1 } = await supabase
+      .from("items")
+      .select("*");
 
-  // ── In-memory state: { [itemId]: { name, ups, downs } }
-  let state = {};
+    if (e1) throw e1;
 
-  // ── Helpers ─────────────────────────────────────────────────
+    const { data: votes, error: e2 } = await supabase
+      .from("votes")
+      .select("*");
 
-  function setStatus(msg, isError = false) {
-    statusEl.textContent   = msg;
-    statusEl.className     = isError ? 'error' : '';
-  }
+    if (e2) throw e2;
 
-  function score(item) {
-    return (item.ups || 0) - (item.downs || 0);
-  }
+    const safeItems = items || [];
+    const safeVotes = votes || [];
 
-  function rankClass(i) {
-    return i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : '';
-  }
+    state = {};
 
-  function rankSymbol(i) {
-    if (i === 0) return '🥇';
-    if (i === 1) return '🥈';
-    if (i === 2) return '🥉';
-    return `#${i + 1}`;
-  }
-
-  // ── Fetch all items + votes ──────────────────────────────────
-
-  async function loadData() {
-    // Not configured yet — clear loading text and stop
-    if (!supabase) {
-      setStatus('');
-      render();
-      return;
+    for (const i of safeItems) {
+      state[i.id] = { name: i.name, up: 0, down: 0 };
     }
 
-    try {
-      setStatus('Step 1/3: Connecting to Supabase…');
-
-      const timer = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timed out after 8s — check your Supabase URL and that the project is not paused.')), 8000)
-      );
-
-      setStatus('Step 2/3: Fetching items…');
-      const itemsRes = await Promise.race([
-        supabase.from('items').select('id, name'),
-        timer
-      ]);
-      if (itemsRes.error) throw new Error('items table: ' + itemsRes.error.message);
-
-      setStatus('Step 3/3: Fetching votes…');
-      const votesRes = await Promise.race([
-        supabase.from('votes').select('item_id, vote_type'),
-        timer
-      ]);
-      if (votesRes.error) throw new Error('votes table: ' + votesRes.error.message);
-
-      const items = itemsRes.data || [];
-      const votes = votesRes.data || [];
-
-      setStatus(`Loaded ${items.length} item(s), ${votes.length} vote(s). Rendering…`);
-
-      const newState = {};
-      for (const item of items) {
-        newState[item.id] = { name: item.name || 'Unnamed', ups: 0, downs: 0 };
-      }
-      for (const vote of votes) {
-        if (!newState[vote.item_id]) continue;
-        if (vote.vote_type === 'up')   newState[vote.item_id].ups++;
-        if (vote.vote_type === 'down') newState[vote.item_id].downs++;
-      }
-
-      state = newState;
-      render();
-      setStatus('');
-
-    } catch (err) {
-      console.error('loadData error:', err);
-      setStatus('⚠ ' + (err.message || 'Could not load data'), true);
-      render();
-    }
-  }
-
-  // ── Render leaderboard ───────────────────────────────────────
-
-  function render() {
-    boardEl.innerHTML = '';
-
-    const sorted = Object.entries(state)
-      .map(([id, item]) => ({ id, ...item, score: score(item) }))
-      .sort((a, b) => b.score - a.score);
-
-    if (sorted.length === 0) {
-      boardEl.innerHTML = `
-        <div class="empty">
-          <strong>No items yet</strong>
-          Add rows to your <code>items</code> table in Supabase to get started.
-        </div>`;
-      return;
+    for (const v of safeVotes) {
+      if (!state[v.item_id]) continue;
+      if (v.vote_type === "up") state[v.item_id].up++;
+      if (v.vote_type === "down") state[v.item_id].down++;
     }
 
-    sorted.forEach((item, i) => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.animationDelay = `${i * 40}ms`;
-      card.dataset.id = item.id;
+    render();
+    setStatus("");
 
-      const sc = item.score;
-      const scoreClass = sc < 0 ? 'neg' : '';
+  } catch (err) {
+    console.error(err);
+    setStatus("Error: " + err.message);
+  }
+}
 
-      card.innerHTML = `
-        <div class="rank ${rankClass(i)}">${rankSymbol(i)}</div>
-        <div class="meta">
-          <span class="name">${escHtml(item.name)}</span>
-          <div class="score-row">
-            <span class="score-val ${scoreClass}">${sc >= 0 ? '+' : ''}${sc}</span>
-            <span>· ${item.ups}↑ ${item.downs}↓</span>
-          </div>
-        </div>
-        <div class="votes">
-          <button class="btn up"   data-id="${item.id}" data-type="up">
-            ${svgUp()} Up
-          </button>
-          <button class="btn down" data-id="${item.id}" data-type="down">
-            ${svgDown()} Down
-          </button>
-        </div>`;
+function render() {
+  boardEl.innerHTML = "";
 
-      boardEl.appendChild(card);
-    });
+  const sorted = Object.entries(state)
+    .map(([id, v]) => ({
+      id,
+      ...v,
+      score: v.up - v.down
+    }))
+    .sort((a, b) => b.score - a.score);
 
-    // Attach vote handlers
-    boardEl.querySelectorAll('.btn').forEach(btn => {
-      btn.addEventListener('click', handleVote);
-    });
+  if (sorted.length === 0) {
+    boardEl.innerHTML = "<p>No items yet</p>";
+    return;
   }
 
-  // ── Vote handler ─────────────────────────────────────────────
+  for (const item of sorted) {
+    const div = document.createElement("div");
+    div.className = "card";
 
-  async function handleVote(e) {
-    const btn    = e.currentTarget;
-    const itemId = btn.dataset.id;
-    const type   = btn.dataset.type; // 'up' | 'down'
+    div.innerHTML = `
+      <div>
+        <b>${item.name}</b><br>
+        Score: ${item.score}
+      </div>
+      <div>
+        <button onclick="vote('${item.id}','up')">⬆️</button>
+        <button onclick="vote('${item.id}','down')">⬇️</button>
+      </div>
+    `;
 
-    if (!supabase) {
-      setStatus('Configure Supabase credentials to enable voting.', true);
-      return;
-    }
-
-    // Optimistic UI update
-    btn.classList.add('loading');
-    if (state[itemId]) {
-      if (type === 'up')   state[itemId].ups++;
-      if (type === 'down') state[itemId].downs++;
-    }
-    render(); // re-render immediately
-
-    try {
-      const { error } = await supabase
-        .from('votes')
-        .insert({ item_id: itemId, vote_type: type });
-
-      if (error) throw error;
-      // Real-time subscription will handle the server-confirmed update
-
-    } catch (err) {
-      console.error('Vote error:', err);
-      // Roll back optimistic update
-      if (state[itemId]) {
-        if (type === 'up')   state[itemId].ups   = Math.max(0, state[itemId].ups   - 1);
-        if (type === 'down') state[itemId].downs = Math.max(0, state[itemId].downs - 1);
-      }
-      setStatus('Vote failed: ' + (err.message || 'unknown error'), true);
-      render();
-    }
+    boardEl.appendChild(div);
   }
+}
 
-  // ── Real-time subscription ───────────────────────────────────
+window.vote = async (id, type) => {
+  await supabase.from("votes").insert({
+    item_id: id,
+    vote_type: type
+  });
 
-  function subscribeRealtime() {
-    if (!supabase) return;
+  load();
+};
 
-    supabase
-      .channel('votes-channel')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'votes' },
-        (payload) => {
-          // A new vote arrived from another user — re-tally from server
-          const { item_id, vote_type } = payload.new || {};
-          if (!item_id || !state[item_id]) return;
-          if (vote_type === 'up')   state[item_id].ups++;
-          if (vote_type === 'down') state[item_id].downs++;
-          render();
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Realtime: subscribed to votes');
-        }
-      });
-  }
-
-  // ── Safety helpers ───────────────────────────────────────────
-
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function svgUp() {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="8 3 13 8 8 13"/><line x1="3" y1="8" x2="13" y2="8"/>
-    </svg>`;
-  }
-
-  function svgDown() {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="8 13 3 8 8 3"/><line x1="13" y1="8" x2="3" y2="8"/>
-    </svg>`;
-  }
-
-  // ── Boot ─────────────────────────────────────────────────────
-
-  (async () => {
-    await loadData();
-    subscribeRealtime();
-  })();
+load();
 </script>
+
 </body>
 </html>
