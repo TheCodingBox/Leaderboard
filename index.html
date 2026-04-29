@@ -271,6 +271,14 @@
     ? null
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  // ── User ID (no login system)
+  const userId = localStorage.getItem('uid') ||
+    (() => {
+      const id = crypto.randomUUID();
+      localStorage.setItem('uid', id);
+      return id;
+    })();
+
   // ── DOM refs
   const boardEl  = document.getElementById('board');
   const statusEl = document.getElementById('status');
@@ -432,12 +440,41 @@
     render(); // re-render immediately
 
     try {
-      const { error } = await sb
+      const existing = await sb
         .from('votes')
-        .insert({ item_id: itemId, vote_type: type });
+        .select('*')
+        .eq('item_id', itemId)
+        .eq('user_id', userId)
+        .maybeSingle();
 
-      if (error) throw error;
-      // Real-time subscription will handle the server-confirmed update
+      if (existing.data) {
+        // already voted → remove vote
+        const { error } = await sb
+          .from('votes')
+          .delete()
+          .eq('item_id', itemId)
+          .eq('user_id', userId);
+
+        if (error) throw error;
+
+        // rollback optimistic update
+        if (state[itemId]) {
+          if (type === 'up') state[itemId].ups = Math.max(0, state[itemId].ups - 1);
+          if (type === 'down') state[itemId].downs = Math.max(0, state[itemId].downs - 1);
+        }
+
+      } else {
+        // no vote yet → insert vote
+        const { error } = await sb
+          .from('votes')
+          .insert({
+            item_id: itemId,
+            user_id: userId,
+            vote_type: type
+          });
+
+        if (error) throw error;
+      }
 
     } catch (err) {
       console.error('Vote error:', err);
@@ -454,9 +491,9 @@
   // ── Real-time subscription ───────────────────────────────────
 
   function subscribeRealtime() {
-    if (!supabase) return;
+    if (!sb) return;
 
-    supabase
+    sb
       .channel('votes-channel')
       .on(
         'postgres_changes',
