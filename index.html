@@ -78,7 +78,7 @@
       font-size: 13px;
       line-height: 1.7;
       color: #c8a060;
-      display: none;
+      display: none; /* shown by JS if placeholder keys detected */
     }
     #config-banner strong { color: var(--accent); }
     #config-banner code {
@@ -256,6 +256,7 @@
       max-width: 100%;
     }
   
+    /* Card layout becomes stacked */
     .card {
       grid-template-columns: 64px 1fr;
       grid-template-rows: auto auto;
@@ -263,31 +264,37 @@
       padding: 14px;
     }
   
+    /* Move vote buttons under content */
     .votes {
       grid-column: 1 / -1;
       justify-content: flex-start;
       margin-top: 6px;
     }
   
+    /* Rank smaller */
     .rank {
       font-size: 1rem;
       width: 64px;
     }
   
+    /* Prevent overflow on names */
     .meta .name {
       font-size: 1rem;
     }
   
+    /* Buttons become tighter */
     .btn {
       padding: 6px 8px;
       font-size: 11px;
     }
   
+    /* Score row wraps nicely */
     .meta .score-row {
       flex-wrap: wrap;
       gap: 4px;
     }
   
+    /* Config banner padding fix */
     #config-banner {
       font-size: 12px;
       padding: 12px 14px;
@@ -304,6 +311,7 @@
   <p class="sub"><span class="live-dot"></span>Live · updates in real time</p>
 </header>
 
+<!-- ⚠️  Shown if placeholder keys are still in place -->
 <div id="config-banner">
   <strong>⚠️ Setup required</strong><br>
   Open this file and replace the two placeholder values near the top of the
@@ -315,16 +323,20 @@
 <div id="status">Loading…</div>
 <div id="board"></div>
 
+<!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <script>
   /* ============================================================
-     🔧  CONFIGURATION
+     🔧  CONFIGURATION — replace these two values with your own
      ============================================================ */
   const SUPABASE_URL = 'https://rotkvofxmvbgsyclbnkx.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdGt2b2Z4bXZiZ3N5Y2xibmt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODg4NzUsImV4cCI6MjA5Mjk2NDg3NX0.2jlfis28XwZeIVkNT1uCM7YjShbUzClbf1Zlo75RRcU';
   /* ============================================================ */
 
+
+
+  // ── Guard: show setup banner if keys are still placeholders
   const isPlaceholder =
     SUPABASE_URL.includes('YOUR_PROJECT_REF') ||
     SUPABASE_KEY.includes('YOUR_ANON_PUBLIC_KEY');
@@ -334,10 +346,12 @@
     document.getElementById('status').textContent = 'Waiting for Supabase credentials…';
   }
 
+  // ── Init Supabase client (safe even with placeholder keys for layout preview)
   const sb = isPlaceholder
     ? null
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+  // ── User ID (no login system)
   const userId = localStorage.getItem('uid') ||
     (() => {
       const id = crypto.randomUUID();
@@ -345,18 +359,20 @@
       return id;
     })();
 
+  // ── DOM refs
   const boardEl  = document.getElementById('board');
   const statusEl = document.getElementById('status');
 
-  let state     = {};
-  let userVotes = {};
-  let voteLock  = {};
+  // ── In-memory state: { [itemId]: { name, ups, downs } }
+  let state = {};
+  let userVotes = {}; // itemId -> 'up' | 'down' | null
+  let voteLock = {};  // prevents spam clicking
 
   // ── Helpers ─────────────────────────────────────────────────
 
   function setStatus(msg, isError = false) {
-    statusEl.textContent = msg;
-    statusEl.className   = isError ? 'error' : '';
+    statusEl.textContent   = msg;
+    statusEl.className     = isError ? 'error' : '';
   }
 
   function score(item) {
@@ -374,131 +390,13 @@
     return `#${i + 1}`;
   }
 
-  function escHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function svgUp() {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="8 3 13 8 8 13"/><line x1="3" y1="8" x2="13" y2="8"/>
-    </svg>`;
-  }
-
-  function svgDown() {
-    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="8 13 3 8 8 3"/><line x1="13" y1="8" x2="3" y2="8"/>
-    </svg>`;
-  }
-
-  function getSorted() {
-    return Object.entries(state)
-      .map(([id, item]) => ({ id, ...item, score: score(item) }))
-      .sort((a, b) => b.score - a.score);
-  }
-
-  // ── Full render — initial load and realtime sync from other users ──
-
-  function fullRender() {
-    boardEl.innerHTML = '';
-    const sorted = getSorted();
-
-    if (sorted.length === 0) {
-      boardEl.innerHTML = `
-        <div class="empty">
-          <strong>No items yet</strong>
-          Add rows to your <code>items</code> table in Supabase to get started.
-        </div>`;
-      return;
-    }
-
-    sorted.forEach((item, i) => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.animationDelay = `${i * 40}ms`;
-      card.dataset.id = item.id;
-      card.innerHTML = buildCardInner(item, i);
-      boardEl.appendChild(card);
-    });
-
-    attachVoteHandlers();
-  }
-
-  // ── Patch render — surgically updates only changed elements, zero flicker ──
-
-  function patchRender() {
-    const sorted = getSorted();
-
-    sorted.forEach((item, i) => {
-      const card = boardEl.querySelector(`.card[data-id="${item.id}"]`);
-      if (!card) return;
-
-      const sc = item.score;
-
-      // Score number
-      const scoreEl = card.querySelector('.score-val');
-      if (scoreEl) {
-        scoreEl.textContent = `${sc >= 0 ? '+' : ''}${sc}`;
-        scoreEl.className = `score-val${sc < 0 ? ' neg' : ''}`;
-      }
-
-      // Up/down tally
-      const tallyEl = card.querySelector('.score-row span:last-child');
-      if (tallyEl) {
-        tallyEl.textContent = `· ${item.ups}↑ ${item.downs}↓`;
-      }
-
-      // Button active states
-      const upBtn   = card.querySelector('.btn.up');
-      const downBtn = card.querySelector('.btn.down');
-      if (upBtn) {
-        upBtn.classList.toggle('up-active', userVotes[item.id] === 'up');
-        upBtn.classList.remove('loading');
-      }
-      if (downBtn) {
-        downBtn.classList.toggle('down-active', userVotes[item.id] === 'down');
-        downBtn.classList.remove('loading');
-      }
-    });
-  }
-
-  function buildCardInner(item, i) {
-    const sc = item.score;
-    const scoreClass = sc < 0 ? 'neg' : '';
-    return `
-      <div class="rank ${rankClass(i)}">${rankSymbol(i)}</div>
-      <div class="meta">
-        <span class="name">${escHtml(item.name)}</span>
-        <div class="score-row">
-          <span class="score-val ${scoreClass}">${sc >= 0 ? '+' : ''}${sc}</span>
-          <span>· ${item.ups}↑ ${item.downs}↓</span>
-        </div>
-      </div>
-      <div class="votes">
-        <button class="btn up ${userVotes[item.id] === 'up' ? 'up-active' : ''}" data-id="${item.id}" data-type="up">
-          ${svgUp()} Up
-        </button>
-        <button class="btn down ${userVotes[item.id] === 'down' ? 'down-active' : ''}" data-id="${item.id}" data-type="down">
-          ${svgDown()} Down
-        </button>
-      </div>`;
-  }
-
-  function attachVoteHandlers() {
-    boardEl.querySelectorAll('.btn').forEach(btn => {
-      btn.addEventListener('pointerup', handleVote);
-    });
-  }
-
-  // ── Load data ────────────────────────────────────────────────
+  // ── Fetch all items + votes ──────────────────────────────────
 
   async function loadData() {
+    // Not configured yet — clear loading text and stop
     if (!sb) {
       setStatus('');
-      fullRender();
+      render();
       return;
     }
 
@@ -525,16 +423,19 @@
 
       const items = itemsRes.data || [];
       const votes = votesRes.data || [];
-
       const userVotesRes = await sb
         .from('votes')
         .select('item_id, vote_type')
         .eq('user_id', userId);
 
+      const userVotesData = userVotesRes.data || [];
+
       userVotes = {};
-      for (const v of (userVotesRes.data || [])) {
+      for (const v of userVotesData) {
         userVotes[v.item_id] = v.vote_type;
       }
+
+      setStatus(`Loaded ${items.length} item(s), ${votes.length} vote(s). Rendering…`);
 
       const newState = {};
       for (const item of items) {
@@ -547,73 +448,139 @@
       }
 
       state = newState;
-      fullRender();
+      render();
       setStatus('');
 
     } catch (err) {
       console.error('loadData error:', err);
       setStatus('⚠ ' + (err.message || 'Could not load data'), true);
-      fullRender();
+      render();
     }
+  }
+
+  // ── Render leaderboard ───────────────────────────────────────
+
+  function render() {
+    boardEl.innerHTML = '';
+
+    const sorted = Object.entries(state)
+      .map(([id, item]) => ({ id, ...item, score: score(item) }))
+      .sort((a, b) => b.score - a.score);
+
+    if (sorted.length === 0) {
+      boardEl.innerHTML = `
+        <div class="empty">
+          <strong>No items yet</strong>
+          Add rows to your <code>items</code> table in Supabase to get started.
+        </div>`;
+      return;
+    }
+
+    sorted.forEach((item, i) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.style.animationDelay = `${i * 40}ms`;
+      card.dataset.id = item.id;
+
+      const sc = item.score;
+      const scoreClass = sc < 0 ? 'neg' : '';
+
+      card.innerHTML = `
+        <div class="rank ${rankClass(i)}">${rankSymbol(i)}</div>
+        <div class="meta">
+          <span class="name">${escHtml(item.name)}</span>
+          <div class="score-row">
+            <span class="score-val ${scoreClass}">${sc >= 0 ? '+' : ''}${sc}</span>
+            <span>· ${item.ups}↑ ${item.downs}↓</span>
+          </div>
+        </div>
+        <div class="votes">
+          <button class="btn up ${userVotes[item.id] === 'up' ? 'up-active' : ''}" data-id="${item.id}" data-type="up">
+            ${svgUp()} Up
+          </button>
+          <button class="btn down ${userVotes[item.id] === 'down' ? 'down-active' : ''}" data-id="${item.id}" data-type="down">
+            ${svgDown()} Down
+          </button>
+        </div>`;
+
+      boardEl.appendChild(card);
+    });
+
+    // Attach vote handlers
+    boardEl.querySelectorAll('.btn').forEach(btn => {
+      btn.addEventListener('pointerup', handleVote);
+    });
   }
 
   // ── Vote handler ─────────────────────────────────────────────
 
   async function handleVote(e) {
-    const btn    = e.currentTarget;
+    const btn = e.currentTarget;
     const itemId = btn.dataset.id;
-    const type   = btn.dataset.type;
-
+    const type = btn.dataset.type;
+  
     if (!sb) return;
+  
     if (voteLock[itemId]) return;
     voteLock[itemId] = true;
-
+  
     btn.classList.add('loading');
-
+  
     const previous = userVotes[itemId] || null;
-
+  
     try {
+  
+      // ── CASE 1: clicking same vote again → REMOVE VOTE
       if (previous === type) {
-        // Toggle off — remove vote
-        await sb.from('votes').delete()
+  
+        await sb
+          .from('votes')
+          .delete()
           .eq('item_id', itemId)
           .eq('user_id', userId);
-
+  
         userVotes[itemId] = null;
-        if (type === 'up')   state[itemId].ups--;
+  
+        if (type === 'up') state[itemId].ups--;
         if (type === 'down') state[itemId].downs--;
-
-      } else {
-        // Switch or new vote — remove old first
+  
+      } 
+      else {
+  
+        // ── CASE 2: switching or new vote
+  
+        // remove previous vote if exists
         if (previous) {
-          await sb.from('votes').delete()
+          await sb
+            .from('votes')
+            .delete()
             .eq('item_id', itemId)
             .eq('user_id', userId);
-
-          if (previous === 'up')   state[itemId].ups--;
+  
+          if (previous === 'up') state[itemId].ups--;
           if (previous === 'down') state[itemId].downs--;
         }
-
+  
+        // insert new vote
         await sb.from('votes').insert({
-          item_id:   itemId,
-          user_id:   userId,
+          item_id: itemId,
+          user_id: userId,
           vote_type: type
         });
-
+  
         userVotes[itemId] = type;
-        if (type === 'up')   state[itemId].ups++;
+  
+        if (type === 'up') state[itemId].ups++;
         if (type === 'down') state[itemId].downs++;
       }
-
-      // ✅ Patch only the affected elements — no rebuild, no flicker
-      patchRender();
-
+  
+      render();
+  
     } catch (err) {
       console.error(err);
       setStatus('Vote failed: ' + err.message, true);
-      btn.classList.remove('loading');
     }
-
+  
     voteLock[itemId] = false;
   }
 
@@ -627,8 +594,8 @@
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'votes' },
-        async () => {
-          // Another user voted — full reload to stay accurate
+        async (payload) => {
+          // A new vote arrived from another user — re-tally from server
           await loadData();
         }
       )
@@ -637,6 +604,28 @@
           console.log('Realtime: subscribed to votes');
         }
       });
+  }
+
+  // ── Safety helpers ───────────────────────────────────────────
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function svgUp() {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="8 3 13 8 8 13"/><line x1="3" y1="8" x2="13" y2="8"/>
+    </svg>`;
+  }
+
+  function svgDown() {
+    return `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="8 13 3 8 8 3"/><line x1="13" y1="8" x2="3" y2="8"/>
+    </svg>`;
   }
 
   // ── Boot ─────────────────────────────────────────────────────
