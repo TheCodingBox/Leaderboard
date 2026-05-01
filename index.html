@@ -6,7 +6,6 @@
   <title>Leaderboard</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <style>
-    /* ── Reset & Base ── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -37,7 +36,6 @@
       padding: 48px 16px 80px;
     }
 
-    /* ── Header ── */
     header {
       text-align: center;
       margin-bottom: 48px;
@@ -66,7 +64,6 @@
       letter-spacing: 0.04em;
     }
 
-    /* ── Config Banner ── */
     #config-banner {
       background: #1a1008;
       border: 1px solid #604010;
@@ -78,7 +75,7 @@
       font-size: 13px;
       line-height: 1.7;
       color: #c8a060;
-      display: none; /* shown by JS if placeholder keys detected */
+      display: none;
     }
     #config-banner strong { color: var(--accent); }
     #config-banner code {
@@ -88,7 +85,6 @@
       font-size: 12px;
     }
 
-    /* ── Error / Loading ── */
     #status {
       max-width: 620px;
       width: 100%;
@@ -100,7 +96,6 @@
     }
     #status.error { color: var(--down); }
 
-    /* ── Board ── */
     #board {
       width: 100%;
       max-width: 620px;
@@ -109,7 +104,6 @@
       gap: 10px;
     }
 
-    /* ── Card ── */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -120,6 +114,9 @@
       gap: 16px;
       padding: 16px 18px;
       transition: border-color 0.2s, transform 0.15s;
+    }
+    /* Animation only applied when the .animate class is present */
+    .card.animate {
       animation: slideIn 0.3s ease both;
     }
     .card:hover {
@@ -132,7 +129,6 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* rank */
     .rank {
       font-family: var(--display);
       font-size: 1.25rem;
@@ -145,7 +141,6 @@
     .rank.r2 { color: var(--rank2); }
     .rank.r3 { color: var(--rank3); }
 
-    /* name + score */
     .meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .meta .name {
       font-family: var(--display);
@@ -170,7 +165,6 @@
     }
     .score-val.neg { color: var(--down); }
 
-    /* vote buttons */
     .votes {
       display: flex;
       gap: 8px;
@@ -198,7 +192,6 @@
     .btn.loading    { opacity: 0.45; pointer-events: none; }
     .btn svg        { width: 14px; height: 14px; flex-shrink: 0; }
 
-    /* empty state */
     .empty {
       text-align: center;
       padding: 60px 20px;
@@ -208,7 +201,6 @@
     }
     .empty strong { color: var(--text); font-family: var(--display); font-size: 1.1rem; display: block; margin-bottom: 8px; }
 
-    /* live dot */
     .live-dot {
       display: inline-block;
       width: 7px; height: 7px;
@@ -227,80 +219,34 @@
       border-color: var(--up);
       color: var(--up);
     }
-    
     .btn.down-active {
       background: #2b0d10;
       border-color: var(--down);
       color: var(--down);
     }
 
-    /* ─────────────────────────────
-   📱 Mobile Optimisation
-   ───────────────────────────── */
-
-  @media (max-width: 600px) {
-  
-    body {
-      padding: 28px 12px 60px;
+    @media (max-width: 600px) {
+      body { padding: 28px 12px 60px; }
+      header { margin-bottom: 28px; }
+      header h1 { font-size: 2rem; }
+      #board { max-width: 100%; }
+      .card {
+        grid-template-columns: 64px 1fr;
+        grid-template-rows: auto auto;
+        gap: 10px 12px;
+        padding: 14px;
+      }
+      .votes {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+        margin-top: 6px;
+      }
+      .rank { font-size: 1rem; width: 64px; }
+      .meta .name { font-size: 1rem; }
+      .btn { padding: 6px 8px; font-size: 11px; }
+      .meta .score-row { flex-wrap: wrap; gap: 4px; }
+      #config-banner { font-size: 12px; padding: 12px 14px; }
     }
-  
-    header {
-      margin-bottom: 28px;
-    }
-  
-    header h1 {
-      font-size: 2rem;
-    }
-  
-    #board {
-      max-width: 100%;
-    }
-  
-    /* Card layout becomes stacked */
-    .card {
-      grid-template-columns: 64px 1fr;
-      grid-template-rows: auto auto;
-      gap: 10px 12px;
-      padding: 14px;
-    }
-  
-    /* Move vote buttons under content */
-    .votes {
-      grid-column: 1 / -1;
-      justify-content: flex-start;
-      margin-top: 6px;
-    }
-  
-    /* Rank smaller */
-    .rank {
-      font-size: 1rem;
-      width: 64px;
-    }
-  
-    /* Prevent overflow on names */
-    .meta .name {
-      font-size: 1rem;
-    }
-  
-    /* Buttons become tighter */
-    .btn {
-      padding: 6px 8px;
-      font-size: 11px;
-    }
-  
-    /* Score row wraps nicely */
-    .meta .score-row {
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-  
-    /* Config banner padding fix */
-    #config-banner {
-      font-size: 12px;
-      padding: 12px 14px;
-    }
-  
-  }
   </style>
 </head>
 <body>
@@ -311,7 +257,6 @@
   <p class="sub"><span class="live-dot"></span>Live · updates in real time</p>
 </header>
 
-<!-- ⚠️  Shown if placeholder keys are still in place -->
 <div id="config-banner">
   <strong>⚠️ Setup required</strong><br>
   Open this file and replace the two placeholder values near the top of the
@@ -323,7 +268,6 @@
 <div id="status">Loading…</div>
 <div id="board"></div>
 
-<!-- Supabase JS CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <script>
@@ -334,9 +278,6 @@
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdGt2b2Z4bXZiZ3N5Y2xibmt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODg4NzUsImV4cCI6MjA5Mjk2NDg3NX0.2jlfis28XwZeIVkNT1uCM7YjShbUzClbf1Zlo75RRcU';
   /* ============================================================ */
 
-
-
-  // ── Guard: show setup banner if keys are still placeholders
   const isPlaceholder =
     SUPABASE_URL.includes('YOUR_PROJECT_REF') ||
     SUPABASE_KEY.includes('YOUR_ANON_PUBLIC_KEY');
@@ -346,12 +287,10 @@
     document.getElementById('status').textContent = 'Waiting for Supabase credentials…';
   }
 
-  // ── Init Supabase client (safe even with placeholder keys for layout preview)
   const sb = isPlaceholder
     ? null
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // ── User ID (no login system)
   const userId = localStorage.getItem('uid') ||
     (() => {
       const id = crypto.randomUUID();
@@ -359,20 +298,16 @@
       return id;
     })();
 
-  // ── DOM refs
   const boardEl  = document.getElementById('board');
   const statusEl = document.getElementById('status');
 
-  // ── In-memory state: { [itemId]: { name, ups, downs } }
   let state = {};
-  let userVotes = {}; // itemId -> 'up' | 'down' | null
-  let voteLock = {};  // prevents spam clicking
-
-  // ── Helpers ─────────────────────────────────────────────────
+  let userVotes = {};
+  let voteLock = {};
 
   function setStatus(msg, isError = false) {
-    statusEl.textContent   = msg;
-    statusEl.className     = isError ? 'error' : '';
+    statusEl.textContent = msg;
+    statusEl.className   = isError ? 'error' : '';
   }
 
   function score(item) {
@@ -390,15 +325,8 @@
     return `#${i + 1}`;
   }
 
-  // ── Fetch all items + votes ──────────────────────────────────
-
   async function loadData() {
-    // Not configured yet — clear loading text and stop
-    if (!sb) {
-      setStatus('');
-      render();
-      return;
-    }
+    if (!sb) { setStatus(''); render(true); return; }
 
     try {
       setStatus('Step 1/3: Connecting to Supabase…');
@@ -429,13 +357,10 @@
         .eq('user_id', userId);
 
       const userVotesData = userVotesRes.data || [];
-
       userVotes = {};
       for (const v of userVotesData) {
         userVotes[v.item_id] = v.vote_type;
       }
-
-      setStatus(`Loaded ${items.length} item(s), ${votes.length} vote(s). Rendering…`);
 
       const newState = {};
       for (const item of items) {
@@ -448,19 +373,19 @@
       }
 
       state = newState;
-      render();
+      // ── Animate only on the initial full page load
+      render(true);
       setStatus('');
 
     } catch (err) {
       console.error('loadData error:', err);
       setStatus('⚠ ' + (err.message || 'Could not load data'), true);
-      render();
+      render(false);
     }
   }
 
-  // ── Render leaderboard ───────────────────────────────────────
-
-  function render() {
+  // ── animate=true adds the slideIn class (initial load only)
+  function render(animate = false) {
     boardEl.innerHTML = '';
 
     const sorted = Object.entries(state)
@@ -478,8 +403,9 @@
 
     sorted.forEach((item, i) => {
       const card = document.createElement('div');
-      card.className = 'card';
-      card.style.animationDelay = `${i * 40}ms`;
+      // Only add the animate class (and its delay) on initial page load
+      card.className = animate ? 'card animate' : 'card';
+      if (animate) card.style.animationDelay = `${i * 40}ms`;
       card.dataset.id = item.id;
 
       const sc = item.score;
@@ -506,107 +432,95 @@
       boardEl.appendChild(card);
     });
 
-    // Attach vote handlers
     boardEl.querySelectorAll('.btn').forEach(btn => {
       btn.addEventListener('pointerup', handleVote);
     });
   }
 
-  // ── Vote handler ─────────────────────────────────────────────
-
   async function handleVote(e) {
     const btn = e.currentTarget;
     const itemId = btn.dataset.id;
     const type = btn.dataset.type;
-  
+
     if (!sb) return;
-  
     if (voteLock[itemId]) return;
     voteLock[itemId] = true;
-  
     btn.classList.add('loading');
-  
+
     const previous = userVotes[itemId] || null;
-  
+
     try {
-  
-      // ── CASE 1: clicking same vote again → REMOVE VOTE
       if (previous === type) {
-  
-        await sb
-          .from('votes')
-          .delete()
-          .eq('item_id', itemId)
-          .eq('user_id', userId);
-  
+        await sb.from('votes').delete()
+          .eq('item_id', itemId).eq('user_id', userId);
         userVotes[itemId] = null;
-  
-        if (type === 'up') state[itemId].ups--;
+        if (type === 'up')   state[itemId].ups--;
         if (type === 'down') state[itemId].downs--;
-  
-      } 
-      else {
-  
-        // ── CASE 2: switching or new vote
-  
-        // remove previous vote if exists
+      } else {
         if (previous) {
-          await sb
-            .from('votes')
-            .delete()
-            .eq('item_id', itemId)
-            .eq('user_id', userId);
-  
-          if (previous === 'up') state[itemId].ups--;
+          await sb.from('votes').delete()
+            .eq('item_id', itemId).eq('user_id', userId);
+          if (previous === 'up')   state[itemId].ups--;
           if (previous === 'down') state[itemId].downs--;
         }
-  
-        // insert new vote
-        await sb.from('votes').insert({
-          item_id: itemId,
-          user_id: userId,
-          vote_type: type
-        });
-  
+        await sb.from('votes').insert({ item_id: itemId, user_id: userId, vote_type: type });
         userVotes[itemId] = type;
-  
-        if (type === 'up') state[itemId].ups++;
+        if (type === 'up')   state[itemId].ups++;
         if (type === 'down') state[itemId].downs++;
       }
-  
-      render();
-  
+
+      // No animation for local vote updates
+      render(false);
+
     } catch (err) {
       console.error(err);
       setStatus('Vote failed: ' + err.message, true);
     }
-  
+
     voteLock[itemId] = false;
   }
-
-  // ── Real-time subscription ───────────────────────────────────
 
   function subscribeRealtime() {
     if (!sb) return;
 
-    sb
-      .channel('votes-channel')
+    sb.channel('votes-channel')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'votes' },
-        async (payload) => {
-          // A new vote arrived from another user — re-tally from server
-          await loadData();
+        { event: '*', schema: 'public', table: 'votes' },
+        (payload) => {
+          // Update state directly from the payload — no round-trip to Supabase,
+          // no full re-render animation.
+          const { eventType, new: newRow, old: oldRow } = payload;
+          const row = eventType === 'DELETE' ? oldRow : newRow;
+
+          // Ignore votes cast by this user — handleVote already updated local state
+          if (row.user_id === userId) return;
+
+          const item = state[row.item_id];
+          if (!item) return; // unknown item, ignore
+
+          if (eventType === 'INSERT') {
+            if (row.vote_type === 'up')   item.ups++;
+            if (row.vote_type === 'down') item.downs++;
+          } else if (eventType === 'DELETE') {
+            if (row.vote_type === 'up')   item.ups   = Math.max(0, item.ups   - 1);
+            if (row.vote_type === 'down') item.downs = Math.max(0, item.downs - 1);
+          } else if (eventType === 'UPDATE') {
+            // vote_type changed (shouldn't happen with current logic, but handle it)
+            if (oldRow.vote_type === 'up')   item.ups   = Math.max(0, item.ups   - 1);
+            if (oldRow.vote_type === 'down') item.downs = Math.max(0, item.downs - 1);
+            if (newRow.vote_type === 'up')   item.ups++;
+            if (newRow.vote_type === 'down') item.downs++;
+          }
+
+          // Re-render without animation
+          render(false);
         }
       )
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Realtime: subscribed to votes');
-        }
+        if (status === 'SUBSCRIBED') console.log('Realtime: subscribed to votes');
       });
   }
-
-  // ── Safety helpers ───────────────────────────────────────────
 
   function escHtml(str) {
     return String(str)
@@ -627,8 +541,6 @@
       <polyline points="8 13 3 8 8 3"/><line x1="13" y1="8" x2="3" y2="8"/>
     </svg>`;
   }
-
-  // ── Boot ─────────────────────────────────────────────────────
 
   (async () => {
     await loadData();
