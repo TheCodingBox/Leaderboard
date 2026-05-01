@@ -433,7 +433,7 @@
     });
 
     boardEl.querySelectorAll('.btn').forEach(btn => {
-      btn.addEventListener('pointerup', handleVote);
+      btn.addEventListener('click', handleVote);
     });
   }
 
@@ -461,7 +461,11 @@
         // Toggle off — delete the existing vote
         const { error } = await sb.from('votes').delete()
           .eq('item_id', itemId).eq('user_id', userId);
-        if (error) throw error;
+        if (error) {
+          console.error("SUPABASE ERROR:", error);
+          alert(error.message);
+          throw error;
+        }
 
         userVotes[itemId] = null;
         if (type === 'up')   state[itemId].ups--;
@@ -472,7 +476,11 @@
         if (previous) {
           const { error } = await sb.from('votes').delete()
             .eq('item_id', itemId).eq('user_id', userId);
-          if (error) throw error;
+          if (error) {
+            console.error("SUPABASE ERROR:", error);
+            alert(error.message);
+            throw error;
+          }
 
           if (previous === 'up')   state[itemId].ups--;
           if (previous === 'down') state[itemId].downs--;
@@ -573,10 +581,10 @@
     </svg>`;
   }
 
-  (async () => {
+  window.addEventListener('DOMContentLoaded', async () => {
     await loadData();
     subscribeRealtime();
-  })();
+  });
 </script>
 </body>
 </html>
