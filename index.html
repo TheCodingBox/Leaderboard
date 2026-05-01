@@ -449,21 +449,42 @@
 
     const previous = userVotes[itemId] || null;
 
+    // Snapshot state before changes so we can roll back on failure
+    const prevUps   = state[itemId].ups;
+    const prevDowns = state[itemId].downs;
+    const prevVote  = previous;
+
+    let dbError = null;
+
     try {
       if (previous === type) {
-        await sb.from('votes').delete()
+        // Toggle off — delete the existing vote
+        const { error } = await sb.from('votes').delete()
           .eq('item_id', itemId).eq('user_id', userId);
+        if (error) throw error;
+
         userVotes[itemId] = null;
         if (type === 'up')   state[itemId].ups--;
         if (type === 'down') state[itemId].downs--;
+
       } else {
+        // Switch or new vote — delete old one first if exists
         if (previous) {
-          await sb.from('votes').delete()
+          const { error } = await sb.from('votes').delete()
             .eq('item_id', itemId).eq('user_id', userId);
+          if (error) throw error;
+
           if (previous === 'up')   state[itemId].ups--;
           if (previous === 'down') state[itemId].downs--;
         }
-        await sb.from('votes').insert({ item_id: itemId, user_id: userId, vote_type: type });
+
+        const { error } = await sb.from('votes').insert({
+          item_id:   itemId,
+          user_id:   userId,
+          vote_type: type
+        });
+        if (error) throw error;
+
         userVotes[itemId] = type;
         if (type === 'up')   state[itemId].ups++;
         if (type === 'down') state[itemId].downs++;
@@ -472,12 +493,19 @@
       render(false);
 
     } catch (err) {
-      console.error(err);
-      setStatus('Vote failed: ' + err.message, true);
+      dbError = err;
+      console.error('Vote failed:', err);
+
+      // Roll back optimistic local changes
+      state[itemId].ups   = prevUps;
+      state[itemId].downs = prevDowns;
+      userVotes[itemId]   = prevVote;
+
+      setStatus('⚠ Vote failed: ' + (err.message || JSON.stringify(err)), true);
+      render(false);
+
     } finally {
-      // Always release the lock and loading state, even if an error occurred
       voteLock[itemId] = false;
-      // btn may have been replaced by render(), so re-query by data attributes
       const freshBtn = boardEl.querySelector(`.btn[data-id="${itemId}"][data-type="${type}"]`);
       if (freshBtn) freshBtn.classList.remove('loading');
     }
