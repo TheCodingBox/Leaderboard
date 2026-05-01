@@ -290,9 +290,14 @@
   const sb = isPlaceholder
     ? null
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  
-  let userId; // will be set from Supabase Auth
-  
+
+  const userId = localStorage.getItem('uid') ||
+    (() => {
+      const id = crypto.randomUUID();
+      localStorage.setItem('uid', id);
+      return id;
+    })();
+
   const boardEl  = document.getElementById('board');
   const statusEl = document.getElementById('status');
 
@@ -428,41 +433,84 @@
     });
 
     boardEl.querySelectorAll('.btn').forEach(btn => {
-      btn.addEventListener('click', handleVote);
+      btn.addEventListener('pointerup', handleVote);
     });
   }
 
   async function handleVote(e) {
-  const btn = e.currentTarget;
-  const itemId = btn.dataset.id;
-  const type = btn.dataset.type;
+    const btn = e.currentTarget;
+    const itemId = btn.dataset.id;
+    const type = btn.dataset.type;
 
-  if (!sb) return;
-  if (voteLock[itemId]) return;
+    if (!sb) return;
+    if (voteLock[itemId]) return;
+    voteLock[itemId] = true;
+    btn.classList.add('loading');
 
-  voteLock[itemId] = true;
-  btn.classList.add('loading');
+    const previous = userVotes[itemId] || null;
 
-  try {
-    const { error } = await sb.rpc('toggle_vote', {
-      p_item_id: itemId,
-      p_user_id: userId,
-      p_vote_type: type
-    });
+    // Snapshot state before changes so we can roll back on failure
+    const prevUps   = state[itemId].ups;
+    const prevDowns = state[itemId].downs;
+    const prevVote  = previous;
 
-    if (error) throw error;
+    let dbError = null;
 
-    // simplest + safest approach:
-    await loadData(); // re-sync from DB
+    try {
+      if (previous === type) {
+        // Toggle off — delete the existing vote
+        const { error } = await sb.from('votes').delete()
+          .eq('item_id', itemId).eq('user_id', userId);
+        if (error) throw error;
 
-  } catch (err) {
-    console.error(err);
-    setStatus('⚠ Vote failed: ' + err.message, true);
-  } finally {
-    voteLock[itemId] = false;
-    btn.classList.remove('loading');
+        userVotes[itemId] = null;
+        if (type === 'up')   state[itemId].ups--;
+        if (type === 'down') state[itemId].downs--;
+
+      } else {
+        // Switch or new vote — delete old one first if exists
+        if (previous) {
+          const { error } = await sb.from('votes').delete()
+            .eq('item_id', itemId).eq('user_id', userId);
+          if (error) throw error;
+
+          if (previous === 'up')   state[itemId].ups--;
+          if (previous === 'down') state[itemId].downs--;
+        }
+
+        const { error } = await sb.from('votes').insert({
+          item_id:   itemId,
+          user_id:   userId,
+          vote_type: type
+        });
+        if (error) throw error;
+
+        userVotes[itemId] = type;
+        if (type === 'up')   state[itemId].ups++;
+        if (type === 'down') state[itemId].downs++;
+      }
+
+      render(false);
+
+    } catch (err) {
+      dbError = err;
+      console.error('Vote failed:', err);
+
+      // Roll back optimistic local changes
+      state[itemId].ups   = prevUps;
+      state[itemId].downs = prevDowns;
+      userVotes[itemId]   = prevVote;
+
+      setStatus('⚠ Vote failed: ' + (err.message || JSON.stringify(err)), true);
+      render(false);
+
+    } finally {
+      voteLock[itemId] = false;
+      const freshBtn = boardEl.querySelector(`.btn[data-id="${itemId}"][data-type="${type}"]`);
+      if (freshBtn) freshBtn.classList.remove('loading');
+    }
   }
-}
+
   function subscribeRealtime() {
     if (!sb) return;
 
@@ -525,25 +573,10 @@
     </svg>`;
   }
 
-  window.addEventListener('DOMContentLoaded', async () => {
-
-    if (!sb) return;
-  
-    setStatus('Connecting…');
-  
-    const { error: authError } = await sb.auth.signInAnonymously();
-    if (authError) {
-      console.error(authError);
-      setStatus('Auth failed: ' + authError.message, true);
-      return;
-    }
-  
-    const { data: { user } } = await sb.auth.getUser();
-    userId = user.id;
-  
+  (async () => {
     await loadData();
     subscribeRealtime();
-  });
+  })();
 </script>
 </body>
 </html>
