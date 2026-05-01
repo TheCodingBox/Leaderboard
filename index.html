@@ -362,7 +362,7 @@
       const userVotesData = userVotesRes.data || [];
       userVotes = {};
       for (const v of userVotesData) {
-        userVotes[v.item_id] = v.vote_type;
+        userVotes[String(v.item_id)] = v.vote_type;
       }
 
       const newState = {};
