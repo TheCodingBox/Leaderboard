@@ -290,14 +290,9 @@
   const sb = isPlaceholder
     ? null
     : window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-  const userId = localStorage.getItem('uid') ||
-    (() => {
-      const id = crypto.randomUUID();
-      localStorage.setItem('uid', id);
-      return id;
-    })();
-
+  
+  let userId; // will be set from Supabase Auth
+  
   const boardEl  = document.getElementById('board');
   const statusEl = document.getElementById('status');
 
@@ -531,6 +526,21 @@
   }
 
   window.addEventListener('DOMContentLoaded', async () => {
+
+    if (!sb) return;
+  
+    setStatus('Connecting…');
+  
+    const { error: authError } = await sb.auth.signInAnonymously();
+    if (authError) {
+      console.error(authError);
+      setStatus('Auth failed: ' + authError.message, true);
+      return;
+    }
+  
+    const { data: { user } } = await sb.auth.getUser();
+    userId = user.id;
+  
     await loadData();
     subscribeRealtime();
   });
