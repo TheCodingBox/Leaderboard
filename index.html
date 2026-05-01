@@ -469,15 +469,18 @@
         if (type === 'down') state[itemId].downs++;
       }
 
-      // No animation for local vote updates
       render(false);
 
     } catch (err) {
       console.error(err);
       setStatus('Vote failed: ' + err.message, true);
+    } finally {
+      // Always release the lock and loading state, even if an error occurred
+      voteLock[itemId] = false;
+      // btn may have been replaced by render(), so re-query by data attributes
+      const freshBtn = boardEl.querySelector(`.btn[data-id="${itemId}"][data-type="${type}"]`);
+      if (freshBtn) freshBtn.classList.remove('loading');
     }
-
-    voteLock[itemId] = false;
   }
 
   function subscribeRealtime() {
