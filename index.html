@@ -367,12 +367,18 @@
 
       const newState = {};
       for (const item of items) {
-        newState[item.id] = { name: item.name || 'Unnamed', ups: 0, downs: 0 };
+        newState[String(item.id)] = {
+          name: item.name || 'Unnamed',
+          ups: 0,
+          downs: 0
+        };
       }
       for (const vote of votes) {
-        if (!newState[vote.item_id]) continue;
-        if (vote.vote_type === 'up')   newState[vote.item_id].ups++;
-        if (vote.vote_type === 'down') newState[vote.item_id].downs++;
+        const key = String(vote.item_id);
+        if (!newState[key]) continue;
+      
+        if (vote.vote_type === 'up') newState[key].ups++;
+        if (vote.vote_type === 'down') newState[key].downs++;
       }
 
       state = newState;
