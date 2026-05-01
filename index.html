@@ -344,10 +344,9 @@
       if (itemsRes.error) throw new Error('items table: ' + itemsRes.error.message);
 
       setStatus('Step 3/3: Fetching votes…');
+
       const votesRes = await Promise.race([
-        sb.from('votes')
-          .select('item_id, vote_type')
-          .range(0, 9999),
+        sb.from('votes').select('item_id, vote_type'),
         timer
       ]);
       if (votesRes.error) throw new Error('votes table: ' + votesRes.error.message);
