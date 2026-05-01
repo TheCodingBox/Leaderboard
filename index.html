@@ -478,11 +478,16 @@
           if (previous === 'down') state[itemId].downs--;
         }
 
-        const { error } = await sb.from('votes').insert({
-          item_id:   itemId,
-          user_id:   userId,
-          vote_type: type
-        });
+        const { data, error } = await sb.from('votes')
+          .insert({
+            item_id: itemId,
+            user_id: userId,
+            vote_type: type
+          })
+          .select('*');
+        
+        console.log("INSERT RESULT:", { data, error });
+        
         if (error) throw error;
 
         userVotes[itemId] = type;
