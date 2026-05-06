@@ -63,6 +63,18 @@
       color: var(--muted);
       letter-spacing: 0.04em;
     }
+    header p.last-winner {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+    header p.last-winner .winner-name {
+      color: var(--rank1);
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 13px;
+    }
 
     #config-banner {
       background: #1a1008;
@@ -115,7 +127,6 @@
       padding: 16px 18px;
       transition: border-color 0.2s, transform 0.15s;
     }
-    /* Animation only applied when the .animate class is present */
     .card.animate {
       animation: slideIn 0.3s ease both;
     }
@@ -255,6 +266,7 @@
   <p class="eyebrow">Community Rankings</p>
   <h1>LEADER<span>BOARD</span></h1>
   <p class="sub"><span class="live-dot"></span>Live · updates in real time</p>
+  <p class="last-winner">🏆 Last week's winner: <span class="winner-name">Lennon Windle</span></p>
 </header>
 
 <div id="config-banner">
@@ -271,12 +283,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <script>
-  /* ============================================================
-     🔧  CONFIGURATION — replace these two values with your own
-     ============================================================ */
   const SUPABASE_URL = 'https://rotkvofxmvbgsyclbnkx.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvdGt2b2Z4bXZiZ3N5Y2xibmt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczODg4NzUsImV4cCI6MjA5Mjk2NDg3NX0.2jlfis28XwZeIVkNT1uCM7YjShbUzClbf1Zlo75RRcU';
-  /* ============================================================ */
 
   const isPlaceholder =
     SUPABASE_URL.includes('YOUR_PROJECT_REF') ||
@@ -327,7 +335,6 @@
 
   async function loadData() {
     if (!sb) { setStatus(''); render(true); return; }
-    
 
     try {
       setStatus('Step 1/3: Connecting to Supabase…');
@@ -353,8 +360,7 @@
 
       const items = itemsRes.data || [];
       const votes = votesRes.data || [];
-      console.log("ITEM IDS (raw items):", items);
-      console.log("VOTES (raw votes):", votes);
+
       const userVotesRes = await sb
         .from('votes')
         .select('item_id, vote_type')
@@ -377,13 +383,11 @@
       for (const vote of votes) {
         const key = String(vote.item_id);
         if (!newState[key]) continue;
-      
         if (vote.vote_type === 'up') newState[key].ups++;
         if (vote.vote_type === 'down') newState[key].downs++;
       }
 
       state = newState;
-      // ── Animate only on the initial full page load
       render(true);
       setStatus('');
 
@@ -394,7 +398,6 @@
     }
   }
 
-  // ── animate=true adds the slideIn class (initial load only)
   function render(animate = false) {
     boardEl.innerHTML = '';
 
@@ -413,7 +416,6 @@
 
     sorted.forEach((item, i) => {
       const card = document.createElement('div');
-      // Only add the animate class (and its delay) on initial page load
       card.className = animate ? 'card animate' : 'card';
       if (animate) card.style.animationDelay = `${i * 40}ms`;
       card.dataset.id = item.id;
@@ -459,7 +461,6 @@
 
     const previous = userVotes[itemId] || null;
 
-    // Snapshot state before changes so we can roll back on failure
     const prevUps   = state[itemId].ups;
     const prevDowns = state[itemId].downs;
     const prevVote  = previous;
@@ -468,7 +469,6 @@
 
     try {
       if (previous === type) {
-        // Toggle off — delete the existing vote
         const { error } = await sb.from('votes').delete()
           .eq('item_id', itemId).eq('user_id', userId);
         if (error) throw error;
@@ -478,7 +478,6 @@
         if (type === 'down') state[itemId].downs--;
 
       } else {
-        // Switch or new vote — delete old one first if exists
         if (previous) {
           const { error } = await sb.from('votes').delete()
             .eq('item_id', itemId).eq('user_id', userId);
@@ -495,9 +494,7 @@
             vote_type: type
           })
           .select('*');
-        
-        console.log("INSERT RESULT:", { data, error });
-        
+
         if (error) throw error;
 
         userVotes[itemId] = type;
@@ -511,7 +508,6 @@
       dbError = err;
       console.error('Vote failed:', err);
 
-      // Roll back optimistic local changes
       state[itemId].ups   = prevUps;
       state[itemId].downs = prevDowns;
       userVotes[itemId]   = prevVote;
@@ -534,16 +530,13 @@
         'postgres_changes',
         { event: '*', schema: 'public', table: 'votes' },
         (payload) => {
-          // Update state directly from the payload — no round-trip to Supabase,
-          // no full re-render animation.
           const { eventType, new: newRow, old: oldRow } = payload;
           const row = eventType === 'DELETE' ? oldRow : newRow;
 
-          // Ignore votes cast by this user — handleVote already updated local state
           if (row.user_id === userId) return;
 
           const item = state[row.item_id];
-          if (!item) return; // unknown item, ignore
+          if (!item) return;
 
           if (eventType === 'INSERT') {
             if (row.vote_type === 'up')   item.ups++;
@@ -552,14 +545,12 @@
             if (row.vote_type === 'up')   item.ups   = Math.max(0, item.ups   - 1);
             if (row.vote_type === 'down') item.downs = Math.max(0, item.downs - 1);
           } else if (eventType === 'UPDATE') {
-            // vote_type changed (shouldn't happen with current logic, but handle it)
             if (oldRow.vote_type === 'up')   item.ups   = Math.max(0, item.ups   - 1);
             if (oldRow.vote_type === 'down') item.downs = Math.max(0, item.downs - 1);
             if (newRow.vote_type === 'up')   item.ups++;
             if (newRow.vote_type === 'down') item.downs++;
           }
 
-          // Re-render without animation
           render(false);
         }
       )
